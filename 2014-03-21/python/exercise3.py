@@ -10,8 +10,6 @@ cilindriPilone = DIFFERENCE([STRUCT([T(2)(-10)(cilindroPilone),T(2)(10)(cilindro
 pilone = STRUCT([cuboPilone,T([1,2])([10,10])(cilindriPilone)])
 piloni = COLOR(GRAY)(STRUCT([pilone,T(1)(90)(pilone)]))
 
-#VIEW(piloni)  # FLOOR0
-
 
 cilindroTorre = CYLINDER([1,55])(36)
 
@@ -32,7 +30,7 @@ tetti = COLOR([0.25,0.25,0.25])(STRUCT([tetto,T([1])([90])(tetto)]))
 
 cilindriTorre = STRUCT([cilindroTorre, T(1)(18)(cilindroTorre), T(2)(18)(cilindroTorre), T([1,2])([18,18])(cilindroTorre) ])
 cuboTorre = CUBOID([19,19,50])
-torr = STRUCT([cuboTorre,T([1,2])([0.5,0.5])(cilindriTorre),T([1,2,3])([0.5,0.5,55])(coniTorre),])#tetto
+torr = STRUCT([cuboTorre,T([1,2])([0.5,0.5])(cilindriTorre),T([1,2,3])([0.5,0.5,55])(coniTorre),])
 
 arco = CUBOID([19,9,12])
 torre = DIFFERENCE([torr,T([2])([5])(arco)])
