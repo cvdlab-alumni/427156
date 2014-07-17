@@ -1,0 +1,600 @@
+
+<!DOCTYPE html>
+<html>
+ <head> 
+  <title>Playground</title> 
+  <style>
+html, body { margin: 0; padding: 0; }
+    body{
+      margin: 0;
+      overflow: hidden;
+    }
+
+    #stats {  /* Align stats top-left */
+      position: absolute;
+      left: 0px;
+      top: 0px;
+    }
+    #pointer {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      margin-top: -15px;
+      margin-left: -15px;
+      width: 30px;
+      height: 30px;
+      display: none;
+      background-image: url("assets/textures/viewfinder.png");
+      background-repeat: no-repeat;
+      background-size: contain;
+    }
+    #hud {
+      position: fixed;
+      margin:0 auto;
+      left: 18%;
+      width: 100%;
+      height: 100%;
+      display: none;
+      background-image: url("assets/textures/doom-shotgun-template1.png");
+      background-repeat: no-repeat;
+      background-size: contain;
+    }
+
+  </style> 
+  </head>
+  <body>
+    <div id="pointer"></div>
+   <center> <div id="hud"></div></center>
+  <!-- JavaScript libraries -->
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script> 
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/three.js/r67/three.min.js"></script>
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/stats.js/r11/Stats.min.js"></script>
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.5/dat.gui.min.js"></script>
+  <script src="assets/libs/TrackballControls.js"></script>
+  <script src="assets/libs/FirstPersonControls.js"></script>
+  <script src="assets/libs/PointerLockControls.js"></script>
+  <script src="assets/libs/OBJLoader.js"></script>
+  <script src="assets/libs/MTLLoader.js"></script>
+  <script src="assets/libs/OBJMTLLoader.js"></script>
+  <script src="LibraryCasa.js"></script>
+  <script src="assets/libs/tween.min.js"></script>
+  <script src="Furniture.js"></script>
+
+  <!--<script src="Pointer.js"></script>-->
+  <!-- Javascript code that runs our Three.js examples --> 
+  <script>
+    // once everything is loaded, we run our Three.js stuff.
+    $(function () {
+      var axisHelper = new THREE.AxisHelper(5);
+
+      var stats = initStats();
+      var DoomMode = false;
+      // create a scene, that will hold all our elements such as objects, cameras and lights.
+      scene = new THREE.Scene();
+      //scene.add(axisHelper)
+      var controls = new function(){};
+      rayCaster = new THREE.Raycaster();
+      rayCaster.ray.direction.set(0, 0, -1);
+      var toIntersect = [];
+      var toInteract = [];
+
+      var plane = new THREE.Mesh(new THREE.PlaneGeometry(300,300,20,20),new THREE.MeshPhongMaterial({color: 0xFF0000, side:THREE.DoubleSide}));
+      plane.position.set(75,75,0);
+      scene.add(plane);
+      toIntersect.push(plane);
+      var FPenabled = false;
+      // create a camera, which defines where we're looking at.
+      var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+      // create trackball controls
+      var trackballControls = new THREE.TrackballControls(camera);
+
+      var coloreMuriCasa = "0xcccccc"
+
+//      var geometry = new THREE.BoxGeometry( 0.8, 3.3 , 0.1);
+//      var material = new THREE.MeshBasicMaterial( {color: coloreMuriCasa, side: THREE.DoubleSide} );
+      //var plane = new THREE.Mesh( geometry, material );
+      //plane.rotation.x = Math.PI/2;
+      //plane.position.set(0.7,3.55,1.65);
+      
+      var havePointerLock = 'pointerLockElement' in document || 'mozPointerLockElement' in document || 'webkitPointerLockElement' in document;
+
+
+      if (havePointerLock) {
+
+        var element = document.body;
+
+        var pointerlockchange = function(event) {
+          if (document.pointerLockElement === element || document.mozPointerLockElement === element || document.webkitPointerLockElement === element) {
+            FPenabled = true;
+            trackballControls.reset();
+            dat.GUI.toggleHide();
+            controls.enabled = true;
+            //camera.position.set(0, 0, 0);
+            camera.up = new THREE.Vector3(0, 1, 0);
+            //controls.getObject().children[0].rotation.x = Math.PI/2;
+            controls.getObject().position.set(10, 15, 12);
+            controls.getObject().rotation.x = Math.PI/2;
+            $("#pointer").fadeIn(1000);
+            if(controlGUI.DoomMode){
+              $("#hud").fadeIn(500);
+            }
+          } else {
+            location.reload();
+          }
+        }
+
+        var pointerlockerror = function(event) {
+          location.reload();
+        }
+
+        document.addEventListener('pointerlockchange', pointerlockchange, false);
+        document.addEventListener('mozpointerlockchange', pointerlockchange, false);
+        document.addEventListener('webkitpointerlockchange', pointerlockchange, false);
+
+        document.addEventListener('pointerlockerror', pointerlockerror, false);
+        document.addEventListener('mozpointerlockerror', pointerlockerror, false);
+        document.addEventListener('webkitpointerlockerror', pointerlockerror, false);
+
+        var startFPS = function() {
+          tbcontrols = false;
+          controls = new THREE.PointerLockControls(camera);
+          scene.add(controls.getObject());
+          element.requestPointerLock = element.requestPointerLock || element.mozRequestPointerLock || element.webkitRequestPointerLock;
+          if (/Firefox/i.test(navigator.userAgent)) {
+            var fullscreenchange = function(event) {
+              if (document.fullscreenElement === element || document.mozFullscreenElement === element || document.mozFullScreenElement === element) {
+                document.removeEventListener('fullscreenchange', fullscreenchange);
+                document.removeEventListener('mozfullscreenchange', fullscreenchange);
+                element.requestPointerLock();
+              }
+            }
+            document.addEventListener('fullscreenchange', fullscreenchange, false);
+            document.addEventListener('mozfullscreenchange', fullscreenchange, false);
+            element.requestFullscreen = element.requestFullscreen || element.mozRequestFullscreen || element.mozRequestFullScreen || element.webkitRequestFullscreen;
+            element.requestFullscreen();
+          } else {
+            element.requestPointerLock();
+          }
+        }
+
+        function computeFPControls() {
+          controls.isOnObject(true);
+          rayCaster.ray.origin.copy(controls.getObject().position);
+          rayCaster.near = 0.01;
+          rayCaster.far = 12;
+          rayCaster.precision = 0.1;
+          var intersections = rayCaster.intersectObjects(toIntersect);
+          if (intersections.length > 0) {
+            var distance = intersections[0].distance;
+            if (distance > 0 && distance < 100) {
+              controls.isOnObject(true);
+            }
+          }
+          controls.update();
+        }
+
+      }
+
+      // create a render and set the size
+      var webGLRenderer = new THREE.WebGLRenderer();
+      webGLRenderer.setClearColor(new THREE.Color(0xeeeeee, 1.0));
+      webGLRenderer.setSize(window.innerWidth, window.innerHeight);
+
+      // position and point the camera to the center of the scene
+      camera.position.set(-80,-80,40);
+      camera.lookAt(new THREE.Vector3(0, 0, 0));
+      camera.up = new THREE.Vector3(0,0,1);
+
+      var directionalLight2 = new THREE.DirectionalLight( 0xffffff, 0.5 );
+      directionalLight2.position.set(-5,-1,1);
+      directionalLight2.castShadow = true;
+      scene.add( directionalLight2 );
+
+      var directionalLight = new THREE.DirectionalLight( 0xffffff, 0.5 );
+      directionalLight.position.set(5,10,8);
+      directionalLight.castShadow = true;
+      scene.add( directionalLight );
+
+      var light = new THREE.AmbientLight( 0x404040 );
+      scene.add( light );
+      
+      var projector = new THREE.Projector();
+      document.addEventListener('mousedown', onDocumentMouseDown, false);
+      //    INSERISCO I BOX DI RIEMPIMENTO
+
+
+
+      // add the output of the renderer to the html element
+      $('body').append(webGLRenderer.domElement);
+
+      // call the render function
+      var step = 0;
+
+      // setup the control gui
+      var controls = new function () {};
+      var tbcontrols = true;
+      //var gui = new dat.GUI();
+      var mesh;
+
+      var loader = new THREE.OBJLoader();
+      loader.load('assets/models/progettoCasa.obj', function (obj) {
+      global_o = obj;
+
+        // var material = new THREE.MeshLambertMaterial({color: 0xaaaaaa});
+        // material.side = THREE.DoubleSide;
+        // obj.children[0].material = material;
+        // mesh = obj.children[0];
+
+
+
+      var multiMaterial = [
+          new THREE.MeshLambertMaterial({color: 0xffe5e5, side: THREE.DoubleSide, shading: THREE.FlatShading, castShadow: true, receiveShadow: true})
+          ];
+      pianta = THREE.SceneUtils.createMultiMaterialObject(obj.children[0].geometry, multiMaterial);
+      pianta = THREE.SceneUtils.createMultiMaterialObject(obj.children[0].geometry, multiMaterial);
+      //pianta.rotation.x = 3/2*Math.PI;
+
+      //  AGGIUNGO BOX DI RIEMPIMENTO
+      //pianta.add(plane);
+      //toIntersect.push(pianta);
+
+      scene.add(pianta);
+      });
+
+
+        var imagePrefix = "assets/textures/dawnmountain-";
+        var directions  = ["xpos", "xneg", "ypos", "yneg", "zpos", "zneg"];
+        var imageSuffix = ".png";
+        var skyGeometry = new THREE.CubeGeometry( 1000, 1000, 1000 ); 
+        
+        var materialArray = [];
+        for (var i = 0; i < 6; i++)
+          materialArray.push( new THREE.MeshBasicMaterial({
+            map: THREE.ImageUtils.loadTexture( imagePrefix + directions[i] + imageSuffix ),
+            side: THREE.BackSide
+          }));
+        var skyMaterial = new THREE.MeshFaceMaterial( materialArray );
+        var skyBox = new THREE.Mesh( skyGeometry, skyMaterial );
+        skyBox.rotation.x = Math.PI/2;
+        scene.add( skyBox );
+
+
+
+      scene.add(new texturePavimento("floor-bath-tiles.jpg",23,19,71,83,2,2));
+
+      scene.add(new texturePavimento("floor-bath-tiles.jpg",31,12,3,70,2.8,1));
+
+
+
+      var puntiSalone = [];
+      puntiSalone.push(new THREE.Vector2( 3, 3));
+      puntiSalone.push(new THREE.Vector2( 94, 3));
+      puntiSalone.push(new THREE.Vector2( 94, 69));
+
+      puntiSalone.push(new THREE.Vector2( 70, 69));
+      puntiSalone.push(new THREE.Vector2( 70, 102));
+      puntiSalone.push(new THREE.Vector2( 55, 102));
+      puntiSalone.push(new THREE.Vector2( 55, 82));
+      puntiSalone.push(new THREE.Vector2( 35, 82));
+      puntiSalone.push(new THREE.Vector2( 35, 70));
+      puntiSalone.push(new THREE.Vector2( 55, 70));
+
+      //puntiSalone.push(new THREE.Vector2( 55, 69));
+      puntiSalone.push(new THREE.Vector2( 55, 39));
+      puntiSalone.push(new THREE.Vector2( 3, 39));
+     // puntiSalone.push(new THREE.Vector2( 3, 3));
+      var formaSalone = new THREE.Shape(puntiSalone);
+     //  var geomFormaSalone = new THREE.ExtrudeGeometry(formaSalone,{amount:0.1,bevelEnabled: false});
+     // var pavimentoSalone = createMesh(geomFormaSalone, "floor-marble.jpg");
+     // pavimentoSalone.material.map.repeat.set(0.05,0.05);
+     // pavimentoSalone.position.set(0,0,1.05);
+     // pavimentoSalone.receiveShadow = true;
+     //scene.add(pavimentoSalone);
+     var pavSalone = new textureShape(formaSalone,"floor-marble.jpg",0.05,0.05)
+     scene.add(pavSalone);
+
+
+     var tappeto = new createMesh(new THREE.BoxGeometry(25,35,0.1),"persian-carpet.jpg");
+     tappeto.position.set(75,40,1.15);
+     scene.add(tappeto);
+
+     scene.add(new texturePavimento("floor-kitchen-tiles.jpg",51,29,3,40,4,2.2));
+
+
+     var puntiZonaNotte = [];
+     puntiZonaNotte.push(new THREE.Vector2(95,3));
+     puntiZonaNotte.push(new THREE.Vector2(134,3));
+     puntiZonaNotte.push(new THREE.Vector2(134,102));
+     puntiZonaNotte.push(new THREE.Vector2(95,102));
+     puntiZonaNotte.push(new THREE.Vector2(95,82));
+     puntiZonaNotte.push(new THREE.Vector2(71,82));
+     puntiZonaNotte.push(new THREE.Vector2(71,70));
+     puntiZonaNotte.push(new THREE.Vector2(95,70));
+     //puntiZonaNotte.push(new THREE.Vector2(95,3));
+     var formaZonaNotte = new THREE.Shape(puntiZonaNotte);
+     scene.add(new textureShape(formaZonaNotte,"floor-parquet.jpg",0.1,0.1));
+
+     insertFurniture(scene);
+
+     var finestre = [];
+     var finestra;
+
+     finestra = new createFinestra("x",8,10);
+     finestra.position.set(15,1.5,8);
+     finestre.push(finestra);
+
+     finestra = new createFinestra("x",8,10);
+     finestra.position.set(42,1.5,8);
+     finestre.push(finestra);
+
+     finestra = new createFinestra("x",6,10);
+     finestra.position.set(73,1.5,8);
+     finestre.push(finestra);
+
+     finestra = new createFinestra("x",6,10);
+     finestra.position.set(79,1.5,8);
+     finestre.push(finestra);
+
+     finestra = new createFinestra("y",8,10);
+     finestra.position.set(1.5,7,8);
+     finestre.push(finestra);
+
+     finestra = new createFinestra("y",8,10);
+     finestra.position.set(1.5,50,8);
+     finestre.push(finestra);
+
+     finestra = new createFinestra("y",8,10);
+     finestra.position.set(1.5,72,8);
+     finestre.push(finestra);
+
+     finestra = new createFinestra("y",8,10);
+     finestra.position.set(1.5,88,8);
+     finestre.push(finestra);
+
+     finestra = new createFinestra("y",8,10);
+     finestra.position.set(135.5,7,8);
+     finestre.push(finestra);
+
+     finestra = new createFinestra("y",6,10);
+     finestra.position.set(135.5,22,8);
+     finestre.push(finestra);
+
+     finestra = new createFinestra("y",6,10);
+     finestra.position.set(135.5,28,8);
+     finestre.push(finestra);
+
+     finestra = new createFinestra("y",6,10);
+     finestra.position.set(135.5,45,8);
+     finestre.push(finestra);
+
+     finestra = new createFinestra("y",6,10);
+     finestra.position.set(135.5,51,8);
+     finestre.push(finestra);
+
+     finestra = new createFinestra("y",8,10);
+     finestra.position.set(135.5,72,8);
+     finestre.push(finestra);
+
+     finestra = new createFinestra("y",8,10);
+     finestra.position.set(135.5,88,8);
+     finestre.push(finestra);
+
+     for(var indexFinestre = 0; indexFinestre < finestre.length; indexFinestre++){
+        scene.add(finestre[indexFinestre]);
+     }
+     
+
+     // Porta Cucina
+     var porta = createPorta("x",Math.PI*0.5,0);
+     porta.position.set(42,39.1,1);
+     scene.add(porta);
+
+     // Porta Studio
+     var porta1 = createPorta("x",Math.PI*0.5,0);
+     porta1.position.set(42,82.1,1);
+     scene.add(porta1);
+
+     // Porta Salone
+     var porta2 = createPorta("x",-Math.PI*0.5,0);
+     porta2.position.set(58.5,69.1,1);
+     scene.add(porta2);
+
+     // Porta Bagno1
+     var porta3 = createPorta("x",Math.PI*0.5,0);
+     porta3.position.set(73,82.1,1);
+     scene.add(porta3);
+
+     // Porta Camera1
+     var porta4 = createPorta("x",Math.PI*0.5,0);
+     porta4.position.set(97,82.1,1);
+     scene.add(porta4);
+
+     // Porta Camera3
+     var porta5 = createPorta("x",Math.PI*0.5,0);
+     porta5.position.set(97,39.1,1);
+     scene.add(porta5);
+
+     // Porta Corridoio
+     var porta6 = createPorta("y",0,Math.PI*0.5);
+     porta6.position.set(70.9,72,1);
+     scene.add(porta6);
+
+     // Porta Camera2
+     var porta7 = createPorta("y",0,Math.PI*0.5);
+     porta7.position.set(107.9,72,1);
+     scene.add(porta7);
+
+     // Porta Bagno2
+     var porta8 = createPorta("y",0,Math.PI*0.5);
+     porta8.position.set(34.9,72,1);
+     scene.add(porta8);
+
+     // Porta Ingresso
+     var porta9 = createPorta("x",-Math.PI*0.5,0);
+     porta9.position.set(57,104.1,1);
+     scene.add(porta9);
+
+
+
+     var porte = [];
+     porte.push(porta.children[0]);
+     porte.push(porta1.children[0]);
+     porte.push(porta2.children[0]);
+     porte.push(porta3.children[0]);
+     porte.push(porta4.children[0]);
+     porte.push(porta5.children[0]);
+     porte.push(porta6.children[0]);
+     porte.push(porta7.children[0]);
+     porte.push(porta8.children[0]);
+     porte.push(porta9.children[0]);
+
+
+
+     var luci = [];
+
+     var lamp = createLamp();
+     lamp.position.set(35,22,21);
+     scene.add(lamp);
+     luci.push(lamp);
+
+     lamp = createLamp();
+     lamp.position.set(73,40,21);
+     scene.add(lamp);
+     luci.push(lamp);
+
+     lamp = createLamp();
+     lamp.position.set(27.5,55,21);
+     scene.add(lamp);
+     luci.push(lamp);
+
+     lamp = createLamp();
+     lamp.position.set(20,76,21);
+     scene.add(lamp);
+     luci.push(lamp);
+
+     lamp = createLamp();
+     lamp.position.set(35,95,21);
+     scene.add(lamp);
+     luci.push(lamp);
+
+     lamp = createLamp();
+     lamp.position.set(82,95,21);
+     scene.add(lamp);
+     luci.push(lamp);
+
+     lamp = createLamp();
+     lamp.position.set(120,95,21);
+     scene.add(lamp);
+     luci.push(lamp);
+
+     lamp = createLamp();
+     lamp.position.set(120,55,21);
+     scene.add(lamp);
+     luci.push(lamp);
+
+     lamp = createLamp();
+     lamp.position.set(120,22,21);
+     scene.add(lamp);
+     luci.push(lamp);
+
+
+     toInteract = porte.concat(luci);
+     var tv = mkTV();
+     toInteract.push(tv);
+     scene.add(tv);
+    
+
+    var mirrorGeom = new THREE.BoxGeometry(0.1, 6, 6);
+    mirrorCamera = new THREE.CubeCamera( 0.1, 100, 256 );
+    mirrorCamera.renderTarget.minFilter = THREE.LinearMipMapLinearFilter;
+    scene.add( mirrorCamera );
+    var mirrorMaterial = new THREE.MeshBasicMaterial( { envMap: mirrorCamera.renderTarget } );
+    mirror = new THREE.Mesh( mirrorGeom, mirrorMaterial );
+    mirror.position.set(94,92,10);
+    mirrorCamera.position = mirror.position;
+    scene.add(mirror);  
+
+
+var controlGUI = new function() {
+    this.FPS = startFPS;
+    this.Luci =  function() {
+      for(var i = 0; i < luci.length; i++){
+        luci[i].interact();
+      }
+    }
+    this.DoomMode = false;
+  };
+
+
+var gui = new dat.GUI();
+  gui.add(controlGUI, "FPS");
+
+  gui.add(controlGUI, "Luci");
+
+  gui.add(controlGUI, "DoomMode");
+
+
+
+
+
+      function onDocumentMouseDown(event) {
+  event.preventDefault();
+  if (document.pointerLockElement === element || document.mozPointerLockElement === element || document.webkitPointerLockElement === element) {
+    var vector = new THREE.Vector3(0, 0, 0.5);
+    projector.unprojectVector(vector, camera);
+    var rayCaster = new THREE.Raycaster(vector,
+      controls.getDirection(new THREE.Vector3(0, 0, 0)));
+  } else {
+  var vector = new THREE.Vector3(( event.clientX / window.innerWidth ) * 2 - 1, -( event.clientY / window.innerHeight ) * 2 + 1, 0.5);
+  projector.unprojectVector(vector, camera);
+
+  var rayCaster = new THREE.Raycaster(camera.position, 
+    vector.sub(camera.position).normalize());
+  }
+  var intersects = rayCaster.intersectObjects(toInteract);
+  if (intersects.length > 0) {
+    intersects[0].object.interact();
+  }
+}
+      render();
+
+      function render() {
+        stats.update();
+        if ( video.readyState === video.HAVE_ENOUGH_DATA ) 
+        {
+          videoImageContext.drawImage( video, 0, 0 );
+          if ( videoTexture ) 
+            videoTexture.needsUpdate = true;
+        }
+        // trackball control
+        if (tbcontrols == true) {
+          trackballControls.update();
+        }
+
+        // first person controls
+        if (FPenabled === true) {
+          computeFPControls();
+        }
+
+        TWEEN.update();
+
+        mirror.visible = false;
+        mirrorCamera.updateCubeMap( webGLRenderer, scene );
+        mirror.visible = true;
+
+        // render using requestAnimationFrame
+        requestAnimationFrame(render);
+        webGLRenderer.render(scene, camera);
+      }
+
+      function initStats() {
+        var stats = new Stats();
+        stats.setMode(0); // 0: fps, 1: ms
+        $('body').append(stats.domElement);
+        return stats;
+      }
+    });
+  </script>  
+ </body>
+</html>
